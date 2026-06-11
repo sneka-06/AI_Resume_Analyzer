@@ -1,6 +1,9 @@
 from fastapi import FastAPI, UploadFile, File
 from src.pdf_extractor import extract_text
 from src.analyzer import analyze_resume
+from src.database import create_table
+from src.database import get_history
+from src.database import save_analysis
 import tempfile
 import os
 
@@ -8,7 +11,7 @@ app = FastAPI(
     title="AI Resume Analyzer"
 )
 
-
+create_table()
 @app.get("/")
 def home():
     return {
@@ -42,6 +45,10 @@ async def analyze(file: UploadFile = File(...)):
         analysis = analyze_resume(
             extraction_result["text"]
         )
+        save_analysis(
+            file.filename,
+            analysis
+        )
 
         return {
             "success": True,
@@ -55,3 +62,13 @@ async def analyze(file: UploadFile = File(...)):
             "success": False,
             "error": str(e)
         }
+
+@app.get("/history")
+def history():
+
+    records = get_history()
+
+    return {
+        "count": len(records),
+        "data": records
+    }
