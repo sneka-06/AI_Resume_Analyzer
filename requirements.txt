@@ -2,3 +2,4 @@ openai
 pypdf
 fastapi
 uvicorn
+python-multipart

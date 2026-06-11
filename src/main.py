@@ -1,66 +1,57 @@
-import argparse
-from pdf_extractor import extract_text
-from analyzer import analyze_resume
+from fastapi import FastAPI, UploadFile, File
+from src.pdf_extractor import extract_text
+from src.analyzer import analyze_resume
+import tempfile
+import os
+
+app = FastAPI(
+    title="AI Resume Analyzer"
+)
 
 
-def main():
-
-    parser = argparse.ArgumentParser(
-        description="AI Resume Analyzer"
-    )
-
-    parser.add_argument(
-        "--resume",
-        required=True,
-        help="Path to resume PDF"
-    )
-
-    args = parser.parse_args()
-
-    print("\nExtracting resume text...\n")
-
-    result = extract_text(args.resume)
-
-    if not result["success"]:
-        print(f"Error: {result['message']}")
-        return
-
-    print("Analyzing resume...\n")
-
-    analysis = analyze_resume(result["text"])
-
-    if "error" in analysis:
-        print(f"Error: {analysis['error']}")
-        return
-
-    print("=" * 50)
-    print("STRENGTHS")
-    print("=" * 50)
-
-    for item in analysis["strengths"]:
-        print("-", item)
-
-    print("\n" + "=" * 50)
-    print("WEAKNESSES")
-    print("=" * 50)
-
-    for item in analysis["weaknesses"]:
-        print("-", item)
-
-    print("\n" + "=" * 50)
-    print("MISSING SKILLS")
-    print("=" * 50)
-
-    for item in analysis["missing_skills"]:
-        print("-", item)
-
-    print("\n" + "=" * 50)
-    print("SUGGESTIONS")
-    print("=" * 50)
-
-    for item in analysis["suggestions"]:
-        print("-", item)
+@app.get("/")
+def home():
+    return {
+        "message": "AI Resume Analyzer API Running"
+    }
 
 
-if __name__ == "__main__":
-    main()
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+
+    try:
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".pdf"
+        ) as temp_file:
+
+            temp_file.write(await file.read())
+            temp_path = temp_file.name
+
+        extraction_result = extract_text(temp_path)
+
+        os.remove(temp_path)
+
+        if not extraction_result["success"]:
+            return {
+                "success": False,
+                "error": extraction_result["message"]
+            }
+
+        analysis = analyze_resume(
+            extraction_result["text"]
+        )
+
+        return {
+            "success": True,
+            "filename": file.filename,
+            "analysis": analysis
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
