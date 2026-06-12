@@ -1,5 +1,6 @@
-openai
-pypdf
 fastapi
 uvicorn
+pypdf
+groq
+python-dotenv
 python-multipart
