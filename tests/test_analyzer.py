@@ -33,6 +33,19 @@ if result["success"]:
     else:
 
         print("\n" + "=" * 50)
+        print("ATS SCORE")
+        print("=" * 50)
+
+        print(analysis["score"])
+
+        print("\n" + "=" * 50)
+        print("SCORE BREAKDOWN")
+        print("=" * 50)
+
+        for category, score in analysis["score_breakdown"].items():
+            print(f"{category}: {score}")
+
+        print("\n" + "=" * 50)
         print("STRENGTHS")
         print("=" * 50)
 

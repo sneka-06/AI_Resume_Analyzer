@@ -6,7 +6,6 @@ import json
 # Load environment variables
 load_dotenv()
 
-# Initialize Groq client
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
@@ -14,17 +13,24 @@ client = Groq(
 
 def analyze_resume(text):
     """
-    Analyze resume text and return structured JSON.
+    Analyze resume and return structured JSON.
     """
 
     prompt = f"""
 You are an ATS resume reviewer.
 
-Analyze the following resume and return ONLY valid JSON.
+Analyze the resume and return ONLY valid JSON.
 
-Required format:
+Format:
 
 {{
+    "score": 0,
+    "score_breakdown": {{
+        "skills": 0,
+        "experience": 0,
+        "education": 0,
+        "resume_quality": 0
+    }},
     "strengths": [],
     "weaknesses": [],
     "missing_skills": [],
@@ -32,16 +38,21 @@ Required format:
 }}
 
 Rules:
-- Return JSON only
+- Return ONLY JSON
 - No markdown
 - No explanations
-- No extra text outside JSON
+- No comments
+- No trailing characters
+- The JSON must be parsable by Python json.loads()
+- Score must be between 1 and 100
+- score_breakdown values should approximately add up to the overall score
 
 Resume:
 {text}
 """
 
     try:
+
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
@@ -54,23 +65,27 @@ Resume:
 
         raw_output = response.choices[0].message.content.strip()
 
-        # Handle cases where model wraps JSON in markdown
-        if raw_output.startswith("```json"):
-            raw_output = raw_output.replace("```json", "")
-            raw_output = raw_output.replace("```", "")
-            raw_output = raw_output.strip()
+        # Remove markdown fences if present
+        raw_output = raw_output.replace("```json", "")
+        raw_output = raw_output.replace("```", "")
+        raw_output = raw_output.strip()
 
-        parsed_output = json.loads(raw_output)
+        try:
+            parsed_output = json.loads(raw_output)
+            return parsed_output
 
-        return parsed_output
+        except json.JSONDecodeError:
 
-    except json.JSONDecodeError:
-        return {
-            "error": "Invalid JSON returned by model",
-            "raw_response": raw_output
-        }
+            # Common cleanup for malformed responses
+            raw_output = raw_output.replace(")}", "}")
+            raw_output = raw_output.replace("\n", " ")
+
+            parsed_output = json.loads(raw_output)
+
+            return parsed_output
 
     except Exception as e:
+
         return {
             "error": str(e)
         }
